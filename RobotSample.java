@@ -20,28 +20,37 @@ public class RobotSample {
         //The robot is made of components which are themselves objects.
         //Create references to them as useful shortcuts
         Motor leftMotor = myRobot.getLargeMotor(Motor.Port.B);
-        UltrasonicSensor ultraSonic = myRobot.getUltrasonicSensor(Sensor.Port.S3);
+        UltrasonicSensor ultraSonicR = myRobot.getUltrasonicSensor(Sensor.Port.S3);
+        UltrasonicSensor ultraSonicL = myRobot.getUltrasonicSensor(Sensor.Port.S1);
         Motor rightMotor = myRobot.getLargeMotor(Motor.Port.C);
         float sumError = 0;
         float lastError = 0;
-        double r = 50;
-        float ki = 0.6f;
-        float kp = 22;
-        float kd = 0.4f;
+
+        float ki = 0;// 0.6f;
+        float kp = 3;
+        float kd = 0; //0.4f;
         float smallestError = 99999;
+        int tarSpeed = 150;
 
         long runTime = System.currentTimeMillis();
         long accumTime = System.currentTimeMillis();
 
+        leftMotor.setSpeed(tarSpeed);
+        rightMotor.setSpeed(tarSpeed);
         leftMotor.forward();
         rightMotor.forward();
-        for (int j =0; j<500; j++) {
+        for (int j =0; j<300; j++) {
             long dt = System.currentTimeMillis() - runTime;
             runTime = System.currentTimeMillis();
-            float distance = ultraSonic.getDistance()*100;
+            float distanceR = ultraSonicR.getDistance()*100;
+            float distanceL = ultraSonicL.getDistance()*100;
+            double in = distanceR - distanceL;
+            double r = 0;
 
-            float error = (float)(distance - r);
-            System.out.println("error" + error);
+            float error = (float)(in - r);
+            if (Double.isNaN(error))
+                error = lastError;
+
             sumError += error;
 
             float p = kp * error;
@@ -50,24 +59,37 @@ public class RobotSample {
 
             lastError = error;
             int speed = ((int)(p+i+d));
-
+            // If distance is negative (needs to move away from wall)
             if (speed < 0) {
-                speed = speed*-1;
-                leftMotor.setSpeed(speed);
-                rightMotor.setSpeed(speed);
-                leftMotor.backward();
-                rightMotor.backward();
+                if (Math.abs(speed) > tarSpeed) {
+                    // ADDING NEGATIVE
+                    leftMotor.setSpeed(0);
+                    rightMotor.setSpeed(tarSpeed*2);
+                }
+                else {
+                    leftMotor.setSpeed(tarSpeed + speed);
+                    rightMotor.setSpeed(tarSpeed - speed);
+                }
+                leftMotor.forward();
+                rightMotor.forward();
             } else {
-                leftMotor.setSpeed(speed);
-                rightMotor.setSpeed(speed);
+                //leftMotor.setSpeed(speed);
+                if (Math.abs(speed) > tarSpeed) {
+                    // ADDING NEGATIVE
+                    leftMotor.setSpeed(tarSpeed*2);
+                    rightMotor.setSpeed(0);
+                }
+                else {
+                    leftMotor.setSpeed(tarSpeed + speed);
+                    rightMotor.setSpeed(tarSpeed - speed);
+                }
                 leftMotor.forward();
                 rightMotor.forward();
             }
             if (Math.abs(error) < smallestError) {
                 smallestError = Math.abs(error);
-                System.out.println("new smallest error: " + Math.abs(smallestError));
             }
-
+            /*
             if (System.currentTimeMillis() - accumTime >= 10000) {
                 if (r == 50)
                     r = 30;
@@ -75,13 +97,7 @@ public class RobotSample {
                     r = 50;
                 accumTime = System.currentTimeMillis();
             }
-            System.out.println("runtime: "+(System.currentTimeMillis() - runTime)/1000);
-
-            System.out.println("r: "+r);
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {
-            }
+            */
         }
     }
 
